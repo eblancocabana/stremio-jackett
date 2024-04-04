@@ -155,10 +155,17 @@ async def get_results(config: str, stream_type: str, stream_id: str):
         jackett_service = JackettService(config)
         jackett_search_results = []
 
+        logger.info("Number of items in media_regex: " + str(len(media_regex)))
+
         for media_re in media_regex:
-            results = jackett_service.search(media_re.pattern)
-            logger.info("Searching " + str(len(jackett_search_results)) + " results from Jackett")
-            jackett_search_results.extend(results)
+            try:
+                logger.info("Searching for pattern: " + media_re.pattern)
+                results = jackett_service.search(media_re.pattern)
+                logger.info("Found " + str(len(results)) + " results for pattern")
+                jackett_search_results.extend(results)
+            except Exception as e:
+                logger.error("Error while searching for pattern: " + str(e))
+
         logger.info("Got " + str(len(jackett_search_results)) + " results from Jackett")
 
         logger.info("Filtering Jackett results")
