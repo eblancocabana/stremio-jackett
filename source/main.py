@@ -121,6 +121,13 @@ async def get_results(config: str, stream_type: str, stream_id: str):
     media = get_metadata(stream_id, stream_type, config=config)
     logger.info("Got media and properties: " + media.title)
 
+    modifications = [lambda x: x,  # Original title
+                 lambda x: re.sub(r':', '', x),  # Remove colons
+                 ]
+
+    # Create a list of regex from the modified media titles
+    media_regex = [re.compile(mod(media.title)) for mod in modifications]
+
     debrid_service = get_debrid_service(config)
 
     search_results = []
@@ -146,7 +153,12 @@ async def get_results(config: str, stream_type: str, stream_id: str):
 
         logger.info("Searching for results on Jackett")
         jackett_service = JackettService(config)
-        jackett_search_results = jackett_service.search(media)
+        jackett_search_results = []
+
+        for media_re in media_regex:
+            results = jackett_service.search(media_re.pattern)
+            logger.info("Searching " + str(len(jackett_search_results)) + " results from Jackett")
+            jackett_search_results.extend(results)
         logger.info("Got " + str(len(jackett_search_results)) + " results from Jackett")
 
         logger.info("Filtering Jackett results")
