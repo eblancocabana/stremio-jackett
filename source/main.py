@@ -15,6 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from models.movie import Movie
+from models.series import Series
 from debrid.get_debrid_service import get_debrid_service
 from jackett.jackett_result import JackettResult
 from jackett.jackett_service import JackettService
@@ -118,15 +120,33 @@ async def get_results(config: str, stream_type: str, stream_id: str):
     logger.info(stream_type + " request")
 
     logger.info("Getting media from tmdb")
-    media = get_metadata(stream_id, stream_type, config=config)
-    logger.info("Got media and properties: " + media.title)
+    original_media = get_metadata(stream_id, stream_type, config=config)
+    logger.info("Got media and properties: " + original_media.title)
 
     modifications = [lambda x: x,  # Original title
-                 lambda x: re.sub(r':', '', x),  # Remove colons
-                 ]
+                     lambda x: re.sub(r':', '', x),  # Remove colons
+                     ]
 
-    # Create a list of regex from the modified media titles
-    media_regex = [re.compile(mod(media.title)) for mod in modifications]
+    # Create a list of media objects with modified titles
+    media_list = []
+    for mod in modifications:
+        modified_title = mod(original_media.title)
+        if isinstance(original_media, Movie):
+            modified_media = Movie(
+                id=original_media.id,
+                title=modified_title,
+                year=original_media.year,
+                language=original_media.language
+            )
+        else:
+            modified_media = Series(
+                id=original_media.id,
+                title=modified_title,
+                season=original_media.season,
+                episode=original_media.episode,
+                language=original_media.language
+            )
+        media_list.append(modified_media)
 
     debrid_service = get_debrid_service(config)
 
@@ -155,12 +175,12 @@ async def get_results(config: str, stream_type: str, stream_id: str):
         jackett_service = JackettService(config)
         jackett_search_results = []
 
-        logger.info("Number of items in media_regex: " + str(len(media_regex)))
+        logger.info("Number of items in media_list: " + str(len(media_list)))
 
-        for media_re in media_regex:
+        for media in media_list:
             try:
-                logger.info("Searching for pattern: " + media_re.pattern)
-                results = jackett_service.search(media_re.pattern)
+                logger.info("Searching for pattern: " + media.title)
+                results = jackett_service.search(media)
                 logger.info("Found " + str(len(results)) + " results for pattern")
                 jackett_search_results.extend(results)
             except Exception as e:
