@@ -120,8 +120,8 @@ async def get_results(config: str, stream_type: str, stream_id: str):
     logger.info(stream_type + " request")
 
     logger.info("Getting media from tmdb")
-    original_media = get_metadata(stream_id, stream_type, config=config)
-    logger.info("Got media and properties: " + original_media.title)
+    media = get_metadata(stream_id, stream_type, config=config)
+    logger.info("Got media and properties: " + media.title)
 
     modifications = [lambda x: x,  # Original title
                      lambda x: re.sub(r':', '', x),  # Remove colons
@@ -130,21 +130,21 @@ async def get_results(config: str, stream_type: str, stream_id: str):
     # Create a list of media objects with modified titles
     media_list = []
     for mod in modifications:
-        modified_title = mod(original_media.title)
-        if isinstance(original_media, Movie):
+        modified_title = mod(media.title)
+        if isinstance(media, Movie):
             modified_media = Movie(
-                id=original_media.id,
+                id=media.id,
                 title=modified_title,
-                year=original_media.year,
-                language=original_media.language
+                year=media.year,
+                language=media.language
             )
         else:
             modified_media = Series(
-                id=original_media.id,
+                id=media.id,
                 title=modified_title,
-                season=original_media.season,
-                episode=original_media.episode,
-                language=original_media.language
+                season=media.season,
+                episode=media.episode,
+                language=media.language
             )
         media_list.append(modified_media)
 
